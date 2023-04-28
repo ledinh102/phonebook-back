@@ -10,6 +10,20 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+const errorHandler = (error, request, response, next) => {
+	console.error(error.message)
+
+	if (error.name === "CastError") {
+		return response.status(400).send({ error: "malformatted id" })
+	}
+
+	next(error)
+}
+
+const unknownEndpoint = (request, response) => {
+	response.status(404).send({ error: "unknown endpoint" })
+}
+
 // use Morgan middleware with the custom format string
 app.use(
 	morgan(
@@ -33,31 +47,44 @@ app.post("/api/persons", (req, res) => {
 	})
 })
 
-app.get("/api/persons/:id", async (req, res) => {
+app.get("/api/persons/:id", async (req, res, next) => {
 	const id = req.params.id
-	const person = await Person.findOne({_id: id}).then((returnedPerson) => {
-		return returnedPerson
-	})
-	if (person) {
-		res.json(person)
-	} else {
-		res.status(404).send("Id of the person not found")
-	}
+	await Person.findOne({ _id: id })
+		.then((returnedPerson) => {
+			if (returnedPerson) res.json(returnedPerson)
+			else res.status(404).send()
+		})
+		.catch((error) => next(error))
 })
 
-app.delete("/api/persons/:id", async (req, res) => {
+app.delete("/api/persons/:id", async (req, res, next) => {
 	const id = req.params.id
-	await Person.deleteOne({_id: id})
-	res.status(204).end()
+	await Person.deleteOne({ _id: id })
+		.then(() => {
+			res.status(204).end()
+		})
+		.catch((err) => next(err))
 })
 
-// app.post("/info", (req, res) => {
-// 	const person = req.body
-// 	console.log(person)
-// 	res.send(
-// 		`<p>Phonebook has info for ${person.length}</p><p>${new Date()}</p>`
-// 	)
-// })
+app.put("/api/persons/:id", async (req, res, next) => {
+	const body = req.body
+	const id = req.params.id
+	await Person.findByIdAndUpdate(
+		id,
+		{
+			name: body.name,
+			phone: body.phone,
+		},
+		{ new: true }
+	)
+		.then((returnedPerson) => {
+			res.json(returnedPerson)
+		})
+		.catch((err) => next(err))
+})
+
+app.use(unknownEndpoint)
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
