@@ -1,13 +1,4 @@
 const mongoose = require("mongoose")
-require("dotenv").config()
-
-const uri = process.env.MONGODB_URI
-
-mongoose.set("strictQuery", false)
-
-mongoose.connect(uri).then(() => {
-	console.log("Connected to Mongo")
-})
 
 const personSchema = new mongoose.Schema({
 	name: {
@@ -33,6 +24,4 @@ personSchema.set("toJSON", {
 	},
 })
 
-const Person = mongoose.model("Person", personSchema)
-
-module.exports = Person
+module.exports = mongoose.model("Person", personSchema)
